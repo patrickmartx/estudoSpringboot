@@ -1,5 +1,7 @@
 package com.patrickmartins.aula01.controller;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import javax.validation.Valid;
@@ -14,7 +16,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.patrickmartins.aula01.modelo.Papel;
 import com.patrickmartins.aula01.modelo.Usuario;
+import com.patrickmartins.aula01.repository.PapelRepository;
 import com.patrickmartins.aula01.repository.UsuarioRepository;
 
 @Controller
@@ -24,6 +28,9 @@ public class UsuarioController {
 	@Autowired
 	private UsuarioRepository usuarioRepository;
 	
+	@Autowired
+	private PapelRepository papelRepository;
+		
 	@GetMapping("/novo")
 	public String adicionarUsuario(Model model) {
 		model.addAttribute("usuario", new Usuario());
@@ -32,10 +39,21 @@ public class UsuarioController {
 	
 	@PostMapping("/salvar")
 	public String salvarUsuario(@Valid Usuario usuario, BindingResult result, 
-				RedirectAttributes attributes) {
+				Model model, RedirectAttributes attributes) {
 		if (result.hasErrors()) {
 			return "/publica-criar-usuario";
 		}
+		
+		Usuario usr = usuarioRepository.findByLogin(usuario.getLogin());
+		if (usr != null) {
+			model.addAttribute("loginExiste", "Login já existe cadastrado");
+			return "/publica-criar-usuario";
+		}
+		
+		Papel papel = papelRepository.findByPapel("USER");
+		List<Papel> papeis = new ArrayList<Papel>();
+		papeis.add(papel);				
+		usuario.setPapeis(papeis);
 		
 		usuarioRepository.save(usuario);
 		attributes.addFlashAttribute("mensagem", "Usuário salvo com sucesso!");
@@ -44,8 +62,8 @@ public class UsuarioController {
 	
 	@RequestMapping("/admin/listar")
 	public String listarUsuario(Model model) {
-		model.addAttribute("usuarios", usuarioRepository.findAll());
-		return "/auth/admin/admin-listar-usuario";
+		model.addAttribute("usuarios", usuarioRepository.findAll());		
+		return "/auth/admin/admin-listar-usuario";		
 	}
 	
 	@GetMapping("/admin/apagar/{id}")
@@ -77,5 +95,5 @@ public class UsuarioController {
 	    usuarioRepository.save(usuario);
 	    return "redirect:/usuario/admin/listar";
 	}
-
+		
 }
