@@ -95,5 +95,16 @@ public class UsuarioController {
 	    usuarioRepository.save(usuario);
 	    return "redirect:/usuario/admin/listar";
 	}
-		
+	
+	@GetMapping("/editarPapel/{id}")
+	public String selecionarPapel(@PathVariable("id") long id, Model model) {
+		Optional<Usuario> usuarioVelho = usuarioRepository.findById(id);
+		if (!usuarioVelho.isPresent()) {
+			throw new IllegalArgumentException("Usuário inválido: " + id);
+		}
+		Usuario usuario = usuarioVelho.get();
+		model.addAttribute("usuario", usuario);
+		model.addAttribute("listaPapeis", papelRepository.findAll());
+		return "/auth/admin/admin-editar-papel-usuario";
+	}
 }
