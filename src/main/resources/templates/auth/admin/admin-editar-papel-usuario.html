@@ -87,7 +87,10 @@
 									<label class="form-check-label" th:text="${pp.papel}"></label>
 								</div>
 							</th:block>	
-						</div>						
+						</div>	
+						<div class="col-sm-5">
+							<span class="mensagem" th:if="${mensagem}" th:text="${mensagem}"></span>
+						</div>					
 					</div>
 
 					<input class="btn btn-primary" type="submit" value="Alterar" />
@@ -99,4 +102,5 @@
 
 
 </body>
+
 </html>
