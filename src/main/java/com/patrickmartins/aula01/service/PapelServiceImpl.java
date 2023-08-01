@@ -35,5 +35,4 @@ public class PapelServiceImpl implements PapelService {
         List<Papel> papeis = papelRepository.findAll();
         return papeis;
     }
-
 }
