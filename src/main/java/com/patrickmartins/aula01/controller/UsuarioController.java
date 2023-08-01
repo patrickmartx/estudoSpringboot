@@ -6,6 +6,8 @@ import java.util.Optional;
 
 import javax.validation.Valid;
 
+import com.patrickmartins.aula01.service.PapelService;
+import com.patrickmartins.aula01.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.CurrentSecurityContext;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,15 +29,11 @@ import com.patrickmartins.aula01.repository.UsuarioRepository;
 @Controller
 @RequestMapping("/usuario")
 public class UsuarioController {
-	
 	@Autowired
-	private UsuarioRepository usuarioRepository;
-	
-	@Autowired
-	private PapelRepository papelRepository;
+	private PapelService papelService;
 
 	@Autowired
-	private BCryptPasswordEncoder criptografia;
+	private UsuarioService usuarioService;
 
 	private boolean temAutorizacao(Usuario usuario, String papel) {
 		for (Papel pp : usuario.getPapeis()) {
@@ -49,7 +47,7 @@ public class UsuarioController {
 	@GetMapping("/index")
 	public String index(@CurrentSecurityContext(expression = "authentication.name")
 						String login) {
-		Usuario usuario = usuarioRepository.findByLogin(login);
+		Usuario usuario = usuarioService.buscarUsuarioPorLogin(login);
 
 		String redirectURL = "";
 		if (temAutorizacao(usuario, "ADMIN")) {
@@ -75,46 +73,33 @@ public class UsuarioController {
 			return "/publica-criar-usuario";
 		}
 		
-		Usuario usr = usuarioRepository.findByLogin(usuario.getLogin());
+		Usuario usr = usuarioService.buscarUsuarioPorLogin(usuario.getLogin());
 		if (usr != null) {
 			model.addAttribute("loginExiste", "Login já existe cadastrado");
 			return "/publica-criar-usuario";
 		}
-		
-		Papel papel = papelRepository.findByPapel("USER");
-		List<Papel> papeis = new ArrayList<Papel>();
-		papeis.add(papel);				
-		usuario.setPapeis(papeis);
 
-		String senhaCriptografada = criptografia.encode(usuario.getPassword());
-		usuario.setPassword(senhaCriptografada);
-		
-		usuarioRepository.save(usuario);
+		usuarioService.gravarUsuario(usuario);
 		attributes.addFlashAttribute("mensagem", "Usuário salvo com sucesso!");
 		return "redirect:/usuario/novo";
 	}
 	
 	@RequestMapping("/admin/listar")
 	public String listarUsuario(Model model) {
-		model.addAttribute("usuarios", usuarioRepository.findAll());		
+		List<Usuario> lista = usuarioService.listarUsuario();
+		model.addAttribute("usuarios", lista);
 		return "/auth/admin/admin-listar-usuario";		
 	}
 	
 	@GetMapping("/admin/apagar/{id}")
 	public String deleteUser(@PathVariable("id") long id, Model model) {
-		Usuario usuario = usuarioRepository.findById(id)
-				.orElseThrow(() -> new IllegalArgumentException("Id inválido:" + id));
-		usuarioRepository.delete(usuario);
+		usuarioService.apagarUsuarioPorId(id);
 	    return "redirect:/usuario/admin/listar";
 	}
 	
 	@GetMapping("/editar/{id}")
 	public String editarUsuario(@PathVariable("id") long id, Model model) {
-		Optional<Usuario> usuarioVelho = usuarioRepository.findById(id);
-		if (!usuarioVelho.isPresent()) {
-            throw new IllegalArgumentException("Usuário inválido:" + id);
-        } 
-		Usuario usuario = usuarioVelho.get();
+		Usuario usuario = usuarioService.buscarUsuarioPorId(id);
 	    model.addAttribute("usuario", usuario);
 	    return "/auth/user/user-alterar-usuario";
 	}
@@ -126,19 +111,16 @@ public class UsuarioController {
 	    	usuario.setId(id);
 	        return "/auth/user/user-alterar-usuario";
 	    }
-	    usuarioRepository.save(usuario);
+	    usuarioService.alterarUsuario(usuario);
 	    return "redirect:/usuario/admin/listar";
 	}
 	
 	@GetMapping("/editarPapel/{id}")
 	public String selecionarPapel(@PathVariable("id") long id, Model model) {
-		Optional<Usuario> usuarioVelho = usuarioRepository.findById(id);
-		if (!usuarioVelho.isPresent()) {
-			throw new IllegalArgumentException("Usuário inválido: " + id);
-		}
-		Usuario usuario = usuarioVelho.get();
+		Usuario usuario = usuarioService.buscarUsuarioPorId(id);
+		List<Papel> papeis = papelService.listarPapel();
 		model.addAttribute("usuario", usuario);
-		model.addAttribute("listaPapeis", papelRepository.findAll());
+		model.addAttribute("listaPapeis", papeis);
 		return "/auth/admin/admin-editar-papel-usuario";
 	}
 	
@@ -152,22 +134,7 @@ public class UsuarioController {
 			attributes.addFlashAttribute("mensagem", "Pelo menos um papel deve ser informado");
 			return "redirect:/usuario/editarPapel/"+idUsuario;
 		} else {
-			List<Papel> papeis = new ArrayList<Papel>();			 
-			for (int i = 0; i < pps.length; i++) {
-				long idPapel = pps[i];
-				Optional<Papel> papelOptional = papelRepository.findById(idPapel);
-				if (papelOptional.isPresent()) {
-					Papel papel = papelOptional.get();
-					papeis.add(papel);
-		        }
-			}
-			Optional<Usuario> usuarioOptional = usuarioRepository.findById(idUsuario);
-			if (usuarioOptional.isPresent()) {
-				Usuario usr = usuarioOptional.get();
-				usr.setPapeis(papeis);
-				usr.setAtivo(usuario.isAtivo());
-				usuarioRepository.save(usr);
-	        }			
+			usuarioService.atribuirPapelParaUsuario(idUsuario, pps, usuario.isAtivo());
 		}		
 	    return "redirect:/usuario/admin/listar";
 	}
